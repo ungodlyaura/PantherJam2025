@@ -15,6 +15,20 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 APantherJamGameCharacter::APantherJamGameCharacter()
 {
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 9999.f, 0.f); // Instant turning if using orient-to-movement
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
+	GetCharacterMovement()->BrakingFrictionFactor = 0.f;
+	GetCharacterMovement()->GroundFriction = 0.f;
+	GetCharacterMovement()->MaxAcceleration = 2048.f;
+
+
+	// Enable ticking for this character
+	PrimaryActorTick.bCanEverTick = true;
+
+	// Disable character rotation for custom rotation control
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 		
@@ -30,9 +44,9 @@ APantherJamGameCharacter::APantherJamGameCharacter()
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 500.f;
-	GetCharacterMovement()->AirControl = 0.35f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
-	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
+	GetCharacterMovement()->AirControl = 5.0f;
+	GetCharacterMovement()->MaxWalkSpeed = 50000.f;
+	GetCharacterMovement()->MinAnalogWalkSpeed = 2.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 
@@ -131,4 +145,37 @@ void APantherJamGameCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+void APantherJamGameCharacter::Tick(float DeltaSeconds)  
+{  
+    Super::Tick(DeltaSeconds);  
+
+	float CurrentSpeed = GetVelocity().Size();
+
+	float NewAcceleration = 10000.f;
+	
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
+
+	if (CurrentSpeed >= 300.f)
+	{
+		NewAcceleration = FMath::GetMappedRangeValueClamped(
+			FVector2D(300.f, 500.f),
+			FVector2D(1500.f, 150.f),
+			CurrentSpeed
+		);
+	}
+
+	GetCharacterMovement()->MaxAcceleration = NewAcceleration;
+
+
+	// Custom rotation logic
+	if (!GetVelocity().IsNearlyZero())
+	{
+		FRotator NewRotation = GetVelocity().Rotation();
+		NewRotation.Pitch = 0.0f; // Keep pitch zero to avoid tilting
+		NewRotation.Roll = 0.0f; // Keep roll zero to avoid tilting
+		SetActorRotation(NewRotation);
+	}
+
 }
