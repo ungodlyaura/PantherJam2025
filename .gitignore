@@ -1,6 +1,9 @@
 # Visual Studio 2015 user specific files
 .vs/
 
+# Visual Studio Code Configuration
+.vscode/
+
 # Compiled Object files
 *.slo
 *.lo
@@ -40,6 +43,7 @@
 *.sdf
 *.VC.db
 *.VC.opendb
+*.code-workspace
 
 # Precompiled Assets
 SourceArt/**/*.png
@@ -73,3 +77,5 @@ Plugins/*/Intermediate/*
 # Cache files for the editor to use
 DerivedDataCache/*
 GameData.csv
+
+Makefile
