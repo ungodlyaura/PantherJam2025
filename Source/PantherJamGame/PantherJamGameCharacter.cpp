@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PantherJamGameCharacter.h"
 #include "Engine/LocalPlayer.h"
@@ -41,15 +41,6 @@ APantherJamGameCharacter::APantherJamGameCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
-	GetCharacterMovement()->JumpZVelocity = 500.f;
-	GetCharacterMovement()->AirControl = 5.0f;
-	GetCharacterMovement()->MaxWalkSpeed = 50000.f;
-	GetCharacterMovement()->MinAnalogWalkSpeed = 2.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
-
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -67,23 +58,15 @@ APantherJamGameCharacter::APantherJamGameCharacter()
 
 void APantherJamGameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
+
 		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &APantherJamGameCharacter::HandleJump);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Look);
-
-		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Look);
-	}
-	else
-	{
-		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 }
 
@@ -94,6 +77,20 @@ void APantherJamGameCharacter::Move(const FInputActionValue& Value)
 
 	// route the input
 	DoMove(MovementVector.X, MovementVector.Y);
+
+	//Get Direction for double jump
+	FVector2D Input = Value.Get<FVector2D>();
+	LastInputVector2D = Input;
+
+	if (Controller && (Input != FVector2D::ZeroVector))
+	{
+		const FRotator YawRotation(0, Controller->GetControlRotation().Yaw, 0);
+		const FVector ForwardDir = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDir = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		AddMovementInput(ForwardDir, Input.Y);
+		AddMovementInput(RightDir, Input.X);
+	}
 }
 
 void APantherJamGameCharacter::Look(const FInputActionValue& Value)
@@ -135,17 +132,78 @@ void APantherJamGameCharacter::DoLook(float Yaw, float Pitch)
 	}
 }
 
-void APantherJamGameCharacter::DoJumpStart()
+void APantherJamGameCharacter::HandleJump()
 {
-	// signal the character to jump
-	Jump();
+	if (GetCharacterMovement()->IsFalling() && bCanDoubleJump)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("agagagag"));
+
+		UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+		
+		// Input direction
+		if (LastInputVector2D.IsNearlyZero())
+			return;
+
+		// Desired direction based on input and control rotation
+		FVector Input = FVector(LastInputVector2D.Y, LastInputVector2D.X, 0.f);
+		FRotator YawRot(0.f, Controller->GetControlRotation().Yaw, 0.f);
+		FVector DesiredDir = FRotationMatrix(YawRot).TransformVector(Input).GetSafeNormal();
+
+		bCanDoubleJump = false;
+
+		// Current horizontal velocity
+		FVector CurrentVel = MoveComp->Velocity;
+		FVector CurrentVel2D = FVector(CurrentVel.X, CurrentVel.Y, 0.f);
+		float CurrentSpeed = CurrentVel2D.Size();
+
+		// Angle between current velocity and desired direction
+		float Dot = FVector::DotProduct(CurrentVel2D.GetSafeNormal(), DesiredDir);
+		float AngleDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Dot, -1.f, 1.f)));
+
+		if (AngleDeg > 135.f)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Double jump angle too sharp"));
+			return;
+		}
+
+		// Apply speed loss based on angle (0degree = 15% loss, 90degree = 50% loss)
+		float SpeedLoss = 0.f;
+		if (AngleDeg <= 45.f)
+		{
+			SpeedLoss = FMath::GetMappedRangeValueClamped(FVector2D(0.f, 45.f), FVector2D(0.f, 0.15f), AngleDeg);
+		}
+		else
+		{
+			SpeedLoss = FMath::GetMappedRangeValueClamped(FVector2D(45.f, 135.f), FVector2D(0.15f, 0.8f), AngleDeg);
+		}
+		float NewSpeed = CurrentSpeed * (1.f - SpeedLoss);
+
+		FVector FinalVelocity = DesiredDir * NewSpeed;
+		FinalVelocity.Z = 1000;
+
+		LaunchCharacter(FinalVelocity, true, true);
+
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+			FString::Printf(TEXT("Double jump %.0fdegree loss: %.0f%%"), AngleDeg, SpeedLoss * 100.f));
+		
+	}
+	else if (GetCharacterMovement()->IsMovingOnGround())
+	{
+		Jump();
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Ground Jump"));
+	}
 }
 
-void APantherJamGameCharacter::DoJumpEnd()
+
+void APantherJamGameCharacter::Landed(const FHitResult& Hit)
 {
-	// signal the character to stop jumping
-	StopJumping();
+	Super::Landed(Hit);
+
+	bCanDoubleJump = true;
+
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Landed"));
 }
+
 
 void APantherJamGameCharacter::Tick(float DeltaSeconds)  
 {  
@@ -161,7 +219,7 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 	{
 		NewAcceleration = FMath::GetMappedRangeValueClamped(
 			FVector2D(300.f, 500.f),
-			FVector2D(1500.f, 150.f),
+			FVector2D(1500.f, 250.f),
 			CurrentSpeed
 		);
 	}
@@ -169,7 +227,7 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 	GetCharacterMovement()->MaxAcceleration = NewAcceleration;
 
 
-	// Custom rotation logic
+	// Custom rotation logic based on direction speed
 	if (!GetVelocity().IsNearlyZero())
 	{
 		FRotator NewRotation = GetVelocity().Rotation();
