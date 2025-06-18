@@ -276,8 +276,8 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 		// Wall detection code
 		FVector Start = GetActorLocation();
 		FVector RightVector = GetActorRightVector();
-		FVector LeftEnd = Start - RightVector * 50.f;
-		FVector RightEnd = Start + RightVector * 50.f;
+		FVector LeftEnd = Start - RightVector * 100.f;
+		FVector RightEnd = Start + RightVector * 100.f;
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -326,8 +326,8 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 		// Check for wall on left or right to start wall run
 		FVector Start = GetActorLocation();
 		FVector RightVector = GetActorRightVector();
-		FVector LeftEnd = Start - RightVector * 50.f;
-		FVector RightEnd = Start + RightVector * 50.f;
+		FVector LeftEnd = Start - RightVector * 100.f;
+		FVector RightEnd = Start + RightVector * 100.f;
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
