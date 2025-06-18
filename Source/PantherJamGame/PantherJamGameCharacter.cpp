@@ -262,19 +262,9 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 
 	float CurrentSpeed = GetVelocity().Size();
 
-	// If character character wall running true 
-	//    if wall left and right
-	//        keep falling velocity 0 for 1 second, and then start to slowly fall down
-	//		  increase wallruntime by DeltaSeconds
-	//    else
-	//	      set wall running false and reset wallruntime
-	// else if character holding jump, check for wall left and right
-	//	  set wall running true if wall found
-	//    change character velocity to align with wall normal
-	// Wall running logic
 	if (bWallRunning)
 	{
-		// ❗ Immediately cancel if jump is no longer held
+		// immediately cancel if jump is no longer held
 		if (!bHoldingJump)
 		{
 			bWallRunning = false;
@@ -369,7 +359,7 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 
 	float NewAcceleration = 10000.f;
 	
-	//GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
+	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
 
 	if (CurrentSpeed >= 300.f)
 	{
