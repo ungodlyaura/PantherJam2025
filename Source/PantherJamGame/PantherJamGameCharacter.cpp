@@ -260,7 +260,8 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
 
 
-	float CurrentSpeed = GetVelocity().Size();
+	// Get current XY Speed, ignoring Z
+	float CurrentSpeed = GetVelocity().Size2D();
 
 	if (bWallRunning)
 	{
@@ -291,18 +292,16 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 
 			// Maintain or reduce vertical velocity
 			FVector Velocity = GetCharacterMovement()->Velocity;
-			if (WallRunTime < 1.0f)
-			{
-				Velocity.Z = 0.f;
-			}
-			else
-			{
-				Velocity.Z = FMath::FInterpTo(Velocity.Z, -200.f, DeltaSeconds, 0.5f);
 
-				// Don't reapply horizontal speed again — keep current horizontal speed
-				GetCharacterMovement()->Velocity.Z = Velocity.Z;
-				return;
-			}
+			const float predropLength = 1.f; // Time before Z falloff
+			const float dropLength = 1.f; // Duration of Z falloff (0% Gravity -> 100% Gravity)
+			const float dropExponent = .5f; // Drop falloff easing exponent
+
+			float dropTime = FMath::Clamp((WallRunTime - predropLength) / dropLength, 0.f, 1.f);
+			float drop = FMath::InterpEaseIn(0.f, 1.f, dropTime, dropExponent);
+
+			Velocity.Z = FMath::Max(Velocity.Z,  Velocity.Z * drop);
+
 			GetCharacterMovement()->Velocity = Velocity;
 
 			// Align velocity along wall
@@ -350,7 +349,8 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 				Forward *= -1.f;
 			}
 			FVector NewVel = Forward * CurrentSpeed;
-			NewVel.Z = 0.f;
+
+			NewVel.Z = FMath::Max(GetCharacterMovement()->Velocity.Z, 0.f);
 			GetCharacterMovement()->Velocity = NewVel;
 		}
 	}
@@ -361,6 +361,7 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 	
 	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
 
+	// Increase movement speed up to a cap
 	if (CurrentSpeed >= 300.f)
 	{
 		NewAcceleration = FMath::GetMappedRangeValueClamped(
