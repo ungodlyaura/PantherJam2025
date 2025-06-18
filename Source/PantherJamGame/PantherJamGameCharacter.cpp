@@ -15,11 +15,7 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 APantherJamGameCharacter::APantherJamGameCharacter()
 {
-	GetCharacterMovement()->RotationRate = FRotator(0.f, 9999.f, 0.f); // Instant turning if using orient-to-movement
 	GetCharacterMovement()->bUseControllerDesiredRotation = false;
-	GetCharacterMovement()->BrakingFrictionFactor = 0.f;
-	GetCharacterMovement()->GroundFriction = 0.f;
-	GetCharacterMovement()->MaxAcceleration = 2048.f;
 
 
 	// Enable ticking for this character
@@ -59,9 +55,10 @@ APantherJamGameCharacter::APantherJamGameCharacter()
 void APantherJamGameCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-
+		
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &APantherJamGameCharacter::HandleJump);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &APantherJamGameCharacter::OnJumpReleased);
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Move);
@@ -132,11 +129,64 @@ void APantherJamGameCharacter::DoLook(float Yaw, float Pitch)
 	}
 }
 
+void APantherJamGameCharacter::OnJumpReleased()
+{
+	bWallRunning = false;
+	bHoldingJump = false;
+	WallRunTime = 0.f;
+
+	// This function is called when the jump input is released
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("space released"));
+	if (GetCharacterMovement()->IsFalling() && bCanWallJump)
+	{
+        // Cast ray on both sides to check for walls
+        FVector Start = GetActorLocation();
+        FVector RightVector = GetActorRightVector();
+        FVector LeftEnd = Start - RightVector * 50.f;
+        FVector RightEnd = Start + RightVector * 50.f;
+
+        FCollisionQueryParams QueryParams;
+        QueryParams.AddIgnoredActor(this);
+
+        FHitResult LeftHit, RightHit;
+        bool bLeftWall = GetWorld()->LineTraceSingleByChannel(LeftHit, Start, LeftEnd, ECC_Visibility, QueryParams);
+        bool bRightWall = GetWorld()->LineTraceSingleByChannel(RightHit, Start, RightEnd, ECC_Visibility, QueryParams);
+
+        FVector WallNormal = FVector::ZeroVector;
+        if (bLeftWall)
+        {
+			WallNormal = LeftHit.ImpactNormal;
+        }
+        else if (bRightWall)
+        {
+			WallNormal = RightHit.ImpactNormal;
+        }
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("try Wall Jump"));
+        if (!WallNormal.IsNearlyZero())
+        {
+			UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+			FVector Velocity = MoveComp->Velocity;
+
+			// Reflect velocity against wall normal
+			FVector ReflectedVelocity = FVector::VectorPlaneProject(Velocity, WallNormal) - Velocity.ProjectOnTo(WallNormal);
+			ReflectedVelocity += WallNormal * 600.f; // Add some force away from wall
+
+			ReflectedVelocity.Z = 800.f; // Give upward boost for wall jump
+
+			LaunchCharacter(ReflectedVelocity, true, true);
+
+			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("Wall Jump!"));
+        }
+
+	}
+}
+
 void APantherJamGameCharacter::HandleJump()
 {
+	bHoldingJump = true;
+
 	if (GetCharacterMovement()->IsFalling() && bCanDoubleJump)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("agagagag"));
 
 		UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 		
@@ -207,13 +257,119 @@ void APantherJamGameCharacter::Landed(const FHitResult& Hit)
 
 void APantherJamGameCharacter::Tick(float DeltaSeconds)  
 {  
-    Super::Tick(DeltaSeconds);  
+    Super::Tick(DeltaSeconds);
+
 
 	float CurrentSpeed = GetVelocity().Size();
 
+	// If character character wall running true 
+	//    if wall left and right
+	//        keep falling velocity 0 for 1 second, and then start to slowly fall down
+	//		  increase wallruntime by DeltaSeconds
+	//    else
+	//	      set wall running false and reset wallruntime
+	// else if character holding jump, check for wall left and right
+	//	  set wall running true if wall found
+	//    change character velocity to align with wall normal
+	// Wall running logic
+	if (bWallRunning)
+	{
+		// ❗ Immediately cancel if jump is no longer held
+		if (!bHoldingJump)
+		{
+			bWallRunning = false;
+			WallRunTime = 0.f;
+			return;
+		}
+
+		// Wall detection code
+		FVector Start = GetActorLocation();
+		FVector RightVector = GetActorRightVector();
+		FVector LeftEnd = Start - RightVector * 50.f;
+		FVector RightEnd = Start + RightVector * 50.f;
+
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+
+		FHitResult LeftHit, RightHit;
+		bool bLeftWall = GetWorld()->LineTraceSingleByChannel(LeftHit, Start, LeftEnd, ECC_Visibility, QueryParams);
+		bool bRightWall = GetWorld()->LineTraceSingleByChannel(RightHit, Start, RightEnd, ECC_Visibility, QueryParams);
+
+		if (bLeftWall || bRightWall)
+		{
+			WallRunTime += DeltaSeconds;
+
+			// Maintain or reduce vertical velocity
+			FVector Velocity = GetCharacterMovement()->Velocity;
+			if (WallRunTime < 1.0f)
+			{
+				Velocity.Z = 0.f;
+			}
+			else
+			{
+				Velocity.Z = FMath::FInterpTo(Velocity.Z, -200.f, DeltaSeconds, 0.5f);
+
+				// Don't reapply horizontal speed again — keep current horizontal speed
+				GetCharacterMovement()->Velocity.Z = Velocity.Z;
+				return;
+			}
+			GetCharacterMovement()->Velocity = Velocity;
+
+			// Align velocity along wall
+			FVector WallNormal = bLeftWall ? LeftHit.ImpactNormal : RightHit.ImpactNormal;
+			FVector Forward = FVector::CrossProduct(WallNormal, FVector::UpVector);
+			if (FVector::DotProduct(Forward, GetActorForwardVector()) < 0)
+			{
+				Forward *= -1.f;
+			}
+			FVector NewVel = Forward * CurrentSpeed;
+			NewVel.Z = GetCharacterMovement()->Velocity.Z;
+			GetCharacterMovement()->Velocity = NewVel;
+		}
+		else
+		{
+			bWallRunning = false;
+			WallRunTime = 0.f;
+		}
+	}
+	else if (bHoldingJump)
+	{
+		// Check for wall on left or right to start wall run
+		FVector Start = GetActorLocation();
+		FVector RightVector = GetActorRightVector();
+		FVector LeftEnd = Start - RightVector * 50.f;
+		FVector RightEnd = Start + RightVector * 50.f;
+
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+
+		FHitResult LeftHit, RightHit;
+		bool bLeftWall = GetWorld()->LineTraceSingleByChannel(LeftHit, Start, LeftEnd, ECC_Visibility, QueryParams);
+		bool bRightWall = GetWorld()->LineTraceSingleByChannel(RightHit, Start, RightEnd, ECC_Visibility, QueryParams);
+
+		if (bLeftWall || bRightWall)
+		{
+			bWallRunning = true;
+			WallRunTime = 0.f;
+
+			// Align velocity along wall
+			FVector WallNormal = bLeftWall ? LeftHit.ImpactNormal : RightHit.ImpactNormal;
+			FVector Forward = FVector::CrossProduct(WallNormal, FVector::UpVector);
+			if (FVector::DotProduct(Forward, GetActorForwardVector()) < 0)
+			{
+				Forward *= -1.f;
+			}
+			FVector NewVel = Forward * CurrentSpeed;
+			NewVel.Z = 0.f;
+			GetCharacterMovement()->Velocity = NewVel;
+		}
+	}
+
+
+
 	float NewAcceleration = 10000.f;
 	
-	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
+	//GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
 
 	if (CurrentSpeed >= 300.f)
 	{

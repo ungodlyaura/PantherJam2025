@@ -53,6 +53,13 @@ protected:
 
 	bool bCanDoubleJump = true;
 
+	bool bCanWallJump = true;
+
+	bool bHoldingJump = false;
+	bool bWallRunning = false;
+	float WallRunTime = 0.0f;
+
+
 public:
 
 	/** Constructor */
@@ -73,6 +80,9 @@ protected:
 
 	UFUNCTION()
 	void HandleJump();
+
+	UFUNCTION()
+	void OnJumpReleased();
 
 
 public:
