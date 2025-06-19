@@ -64,8 +64,12 @@ void APantherJamGameCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Move);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Look);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Look);
+
+		// Sliding
+		EnhancedInputComponent->BindAction(SlideAction, ETriggerEvent::Started, this, &APantherJamGameCharacter::StartSlide);
 	}
 }
+
 
 void APantherJamGameCharacter::Move(const FInputActionValue& Value)
 {
@@ -129,6 +133,29 @@ void APantherJamGameCharacter::DoLook(float Yaw, float Pitch)
 	}
 }
 
+
+void APantherJamGameCharacter::EndSlide()
+{
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Sliding ended!"));
+}
+
+
+void ApantherJamGameCharacter::StartSlide()
+{
+	if (GetCharacterMovement()->IsMovingOnGround() && !GetCharacterMovement()->IsFalling())
+	{
+		GetCharacterMovement()->Velocity *= 1.2f;
+		GetCharacterMovement()->SetMovementMode(MOVE_Swimming);
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Sliding started!"));
+		bIsSliding = true;
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Cannot slide while in the air!"));
+	}
+}
+
 void APantherJamGameCharacter::OnJumpReleased()
 {
 	bWallRunning = false;
@@ -142,8 +169,8 @@ void APantherJamGameCharacter::OnJumpReleased()
         // Cast ray on both sides to check for walls
         FVector Start = GetActorLocation();
         FVector RightVector = GetActorRightVector();
-        FVector LeftEnd = Start - RightVector * 50.f;
-        FVector RightEnd = Start + RightVector * 50.f;
+        FVector LeftEnd = Start - RightVector * 100.f;
+        FVector RightEnd = Start + RightVector * 100.f;
 
         FCollisionQueryParams QueryParams;
         QueryParams.AddIgnoredActor(this);

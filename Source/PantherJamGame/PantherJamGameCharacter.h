@@ -59,6 +59,10 @@ protected:
 	bool bWallRunning = false;
 	float WallRunTime = 0.0f;
 
+	bool bIsSliding = false;
+
+	
+
 
 public:
 
@@ -83,6 +87,9 @@ protected:
 
 	UFUNCTION()
 	void OnJumpReleased();
+
+	UFUNCTION()
+	void Slide();
 
 
 public:
