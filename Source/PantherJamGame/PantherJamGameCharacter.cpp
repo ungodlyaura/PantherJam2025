@@ -66,7 +66,7 @@ void APantherJamGameCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APantherJamGameCharacter::Look);
 
 		// Sliding
-		EnhancedInputComponent->BindAction(SlideAction, ETriggerEvent::Started, this, &APantherJamGameCharacter::StartSlide);
+		/*EnhancedInputComponent->BindAction(SlideAction, ETriggerEvent::Started, this, &APantherJamGameCharacter::StartSlide);*/
 	}
 }
 
@@ -134,27 +134,27 @@ void APantherJamGameCharacter::DoLook(float Yaw, float Pitch)
 }
 
 
-void APantherJamGameCharacter::EndSlide()
-{
-	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Sliding ended!"));
-}
+//void APantherJamGameCharacter::EndSlide()
+//{
+//	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+//	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Sliding ended!"));
+//}
 
 
-void ApantherJamGameCharacter::StartSlide()
-{
-	if (GetCharacterMovement()->IsMovingOnGround() && !GetCharacterMovement()->IsFalling())
-	{
-		GetCharacterMovement()->Velocity *= 1.2f;
-		GetCharacterMovement()->SetMovementMode(MOVE_Swimming);
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Sliding started!"));
-		bIsSliding = true;
-	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Cannot slide while in the air!"));
-	}
-}
+//void ApantherJamGameCharacter::StartSlide()
+//{
+//	if (GetCharacterMovement()->IsMovingOnGround() && !GetCharacterMovement()->IsFalling())
+//	{
+//		GetCharacterMovement()->Velocity *= 1.2f;
+//		GetCharacterMovement()->SetMovementMode(MOVE_Swimming);
+//		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Sliding started!"));
+//		// bIsSliding = true;
+//	}
+//	else
+//	{
+//		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Cannot slide while in the air!"));
+//	}
+//}
 
 void APantherJamGameCharacter::OnJumpReleased()
 {
@@ -386,7 +386,7 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 
 	float NewAcceleration = 10000.f;
 	
-	GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, FString::Printf(TEXT("Speed: %.2f"), CurrentSpeed));
 
 	// Increase movement speed up to a cap
 	if (CurrentSpeed >= 300.f)
