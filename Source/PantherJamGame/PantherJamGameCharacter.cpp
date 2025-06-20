@@ -328,7 +328,6 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 			float drop = FMath::InterpEaseIn(0.f, 1.f, dropTime, dropExponent);
 
 			Velocity.Z = FMath::Max(Velocity.Z,  Velocity.Z * drop);
-
 			GetCharacterMovement()->Velocity = Velocity;
 
 			// Align velocity along wall
@@ -341,6 +340,13 @@ void APantherJamGameCharacter::Tick(float DeltaSeconds)
 			FVector NewVel = Forward * CurrentSpeed;
 			NewVel.Z = GetCharacterMovement()->Velocity.Z;
 			GetCharacterMovement()->Velocity = NewVel;
+
+			// Maintain 50 units from wall
+			FVector ImpactPoint = bLeftWall ? LeftHit.ImpactPoint : RightHit.ImpactPoint;
+			FVector DesiredOffset = ImpactPoint + (WallNormal * 50.f);
+			FVector CurrentLocation = GetActorLocation();
+			FVector NewLocation = FMath::VInterpTo(CurrentLocation, DesiredOffset, DeltaSeconds, 20.f); // smooth slide
+			SetActorLocation(NewLocation, true);
 		}
 		else
 		{
