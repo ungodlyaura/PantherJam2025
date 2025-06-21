@@ -163,7 +163,7 @@ void APantherJamGameCharacter::OnJumpReleased()
 	WallRunTime = 0.f;
 
 	// This function is called when the jump input is released
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("space released"));
+	//GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("space released"));
 	if (GetCharacterMovement()->IsFalling() && bCanWallJump)
 	{
         // Cast ray on both sides to check for walls
@@ -188,7 +188,7 @@ void APantherJamGameCharacter::OnJumpReleased()
         {
 			WallNormal = RightHit.ImpactNormal;
         }
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("try Wall Jump"));
+		//GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("try Wall Jump"));
         if (!WallNormal.IsNearlyZero())
         {
 			UCharacterMovementComponent* MoveComp = GetCharacterMovement();
@@ -202,7 +202,7 @@ void APantherJamGameCharacter::OnJumpReleased()
 
 			LaunchCharacter(ReflectedVelocity, true, true);
 
-			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("Wall Jump!"));
+			//GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue, TEXT("Wall Jump!"));
         }
 
 	}
@@ -239,7 +239,7 @@ void APantherJamGameCharacter::HandleJump()
 
 		if (AngleDeg > 135.f)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Double jump angle too sharp"));
+			//GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Double jump angle too sharp"));
 			return;
 		}
 
@@ -260,14 +260,14 @@ void APantherJamGameCharacter::HandleJump()
 
 		LaunchCharacter(FinalVelocity, true, true);
 
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-			FString::Printf(TEXT("Double jump %.0fdegree loss: %.0f%%"), AngleDeg, SpeedLoss * 100.f));
+		//GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+			//FString::Printf(TEXT("Double jump %.0fdegree loss: %.0f%%"), AngleDeg, SpeedLoss * 100.f));
 		
 	}
 	else if (GetCharacterMovement()->IsMovingOnGround())
 	{
 		Jump();
-		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Ground Jump"));
+		//GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Green, TEXT("Ground Jump"));
 	}
 }
 
@@ -278,7 +278,7 @@ void APantherJamGameCharacter::Landed(const FHitResult& Hit)
 
 	bCanDoubleJump = true;
 
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Landed"));
+	//GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Landed"));
 }
 
 
